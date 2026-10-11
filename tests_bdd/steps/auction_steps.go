@@ -1,25 +1,27 @@
 package steps
 
 import (
-	"context"
+	"bytes"
 	"encoding/json"
 	"fmt"
+	"github.com/cucumber/godog"
 	"io"
 	"net/http"
-	"bytes"
+	"net/url"
 	"os"
-	"strconv"
+	"path/filepath"
+	"strings"
 	"time"
-	"github.com/cucumber/godog"
 )
 
 type auctionOutput struct {
-	Id          string `json:"id"`
-	ProductName string `json:"product_name"`
-	Category    string `json:"category"`
-	Description string `json:"description"`
-	Condition   int    `json:"condition"`
-	Status      int    `json:"status"`
+	Id          string    `json:"id"`
+	ProductName string    `json:"product_name"`
+	Category    string    `json:"category"`
+	Description string    `json:"description"`
+	Condition   int       `json:"condition"`
+	Status      int       `json:"status"`
+	Timestamp   time.Time `json:"timestamp"`
 }
 
 var (
@@ -67,7 +69,8 @@ func iCreateAnAuction(productName, category, description string, condition int) 
 
 func iSearchForActiveAuctionsWithProductName(productName string) error {
 	client := http.Client{Timeout: 5 * time.Second}
-	resp, err := client.Get(baseURL + "/auction?status=0&productName=" + productName)
+	escaped := url.QueryEscape(productName)
+	resp, err := client.Get(baseURL + "/auction?status=0&productName=" + escaped)
 	if err != nil {
 		return err
 	}
@@ -87,21 +90,39 @@ func iShouldFindAtLeastOneAuction() error {
 	if len(lastFound) == 0 {
 		return fmt.Errorf("no auctions found in last search")
 	}
-	currentId = lastFound[0].Id
+	// The DB persists across runs, so pick the most recently created auction
+	newest := lastFound[0]
+	for _, a := range lastFound[1:] {
+		if !a.Timestamp.Before(newest.Timestamp) {
+			newest = a
+		}
+	}
+	currentId = newest.Id
 	return nil
 }
 
-func iWaitForTheAuctionDuration() error {
-	// read env var
-	secsStr := os.Getenv("AUCTION_DURATION")
-	secs := 5
-	if secsStr != "" {
-		if v, err := strconv.Atoi(secsStr); err == nil && v > 0 {
-			secs = v
+// auctionInterval returns AUCTION_INTERVAL from the environment, falling back
+// to the value in cmd/auction/.env (the file the app container loads).
+func auctionInterval() time.Duration {
+	value := os.Getenv("AUCTION_INTERVAL")
+	if value == "" {
+		if data, err := os.ReadFile(filepath.Join("..", "cmd", "auction", ".env")); err == nil {
+			for _, line := range strings.Split(string(data), "\n") {
+				if v, ok := strings.CutPrefix(strings.TrimSpace(line), "AUCTION_INTERVAL="); ok {
+					value = strings.Trim(v, `"' `)
+				}
+			}
 		}
 	}
-	// wait a bit more than duration to allow background job to finish
-	time.Sleep(time.Duration(secs+1) * time.Second)
+	if d, err := time.ParseDuration(value); err == nil && d > 0 {
+		return d
+	}
+	return 5 * time.Second
+}
+
+func iWaitForTheAuctionDuration() error {
+	// wait a bit more than the interval to allow the background job to finish
+	time.Sleep(auctionInterval() + 2*time.Second)
 	return nil
 }
 

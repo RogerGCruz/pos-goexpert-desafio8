@@ -6,7 +6,6 @@ import (
 	"fullcycle-auction_go/internal/entity/auction_entity"
 	"fullcycle-auction_go/internal/internal_error"
 	"os"
-	"strconv"
 	"time"
 
 	"go.mongodb.org/mongo-driver/bson"
@@ -50,16 +49,12 @@ var closeAuctionFunc = func(ar *AuctionRepository, auctionId string) {
 }
 
 func getAuctionDuration() time.Duration {
-	// Read AUCTION_DURATION in seconds from env. Default to 5 seconds when missing or invalid.
-	durStr := os.Getenv("AUCTION_DURATION")
-	if durStr == "" {
+	// Read AUCTION_INTERVAL (e.g. "20s") from env. Default to 5 seconds when missing or invalid.
+	duration, err := time.ParseDuration(os.Getenv("AUCTION_INTERVAL"))
+	if err != nil || duration <= 0 {
 		return 5 * time.Second
 	}
-	secs, err := strconv.ParseInt(durStr, 10, 64)
-	if err != nil || secs <= 0 {
-		return 5 * time.Second
-	}
-	return time.Duration(secs) * time.Second
+	return duration
 }
 
 func (ar *AuctionRepository) CreateAuction(

@@ -31,9 +31,6 @@ if [ "$HTTP_STATUS" != "200" ]; then
   exit 2
 fi
 
-# Export a short auction duration for faster tests if not set
-export AUCTION_DURATION=${AUCTION_DURATION:-2}
-
 # Run godog-based tests (go test harness)
 cd tests_bdd
 # Ensure deps are downloaded

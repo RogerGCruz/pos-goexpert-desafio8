@@ -48,8 +48,9 @@ func (repo *AuctionRepository) FindAuctions(
 	}
 
 	if productName != "" {
-		filter["productName"] = primitive.Regex{Pattern: productName, Options: "i"}
-	}
+			// Mongo stores product name as snake_case 'product_name'
+			filter["product_name"] = primitive.Regex{Pattern: productName, Options: "i"}
+		}
 
 	cursor, err := repo.Collection.Find(ctx, filter)
 	if err != nil {

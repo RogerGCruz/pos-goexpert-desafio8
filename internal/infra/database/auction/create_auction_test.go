@@ -10,8 +10,8 @@ import (
 
 func TestCreateAuction_SchedulesClose(t *testing.T) {
 	// set short duration for test
-	os.Setenv("AUCTION_DURATION", "1")
-	defer os.Unsetenv("AUCTION_DURATION")
+	os.Setenv("AUCTION_INTERVAL", "1s")
+	defer os.Unsetenv("AUCTION_INTERVAL")
 
 	// replace closeAuctionFunc to observe invocation
 	orig := closeAuctionFunc

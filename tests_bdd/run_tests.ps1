@@ -36,8 +36,6 @@ try {
     exit 2
 }
 
-if (-not $env:AUCTION_DURATION) { $env:AUCTION_DURATION = '2' }
-
 Set-Location tests_bdd
 Write-Host "Running BDD tests (go test -v)"
 go mod tidy
